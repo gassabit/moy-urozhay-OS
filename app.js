@@ -77,6 +77,33 @@ by('task-filter').onchange = event => {
   taskFilter = event.target.value;
   renderTasks();
 };
+
+by('backup-export').onclick = () => {
+  const blob = new Blob([JSON.stringify({version: 1, diary: state}, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const link = el('a');
+  link.href = url;
+  link.download = 'moy-urozhay-2027.json';
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
+by('backup-import').onchange = async event => {
+  const input = event.currentTarget;
+  const file = input.files[0];
+  input.value = '';
+  if (!file) return;
+  try {
+    if (file.size > 5 * 1024 * 1024) throw Error();
+    const backup = JSON.parse(await file.text());
+    if (backup?.version !== 1 || !valid(backup.diary)) throw Error();
+    if (window.confirm('Заменить текущий дневник данными из резервной копии?')) {
+      save(backup.diary);
+    }
+  } catch {
+    notice('Не удалось прочитать резервную копию. Выберите файл дневника «Мой урожай OS» размером до 5 МБ.');
+  }
+};
 form.onsubmit=e=>{e.preventDefault();const f=form.elements;save({...state,region:f.region.value.trim(),width:Number(f.width.value),length:Number(f.namedItem('length').value),date:f.date.value})};
 task.onsubmit=e=>{e.preventDefault();const f=task.elements;if(save({...state,tasks:[...state.tasks,{title:f.title.value.trim(),due:f.due.value,done:false}]}))task.reset()};
 by('print').onclick=by('sheet').onclick=()=>window.print();render();if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>notice('Офлайн-режим недоступен.'));
