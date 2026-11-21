@@ -1,4 +1,4 @@
-import {initial,crops,valid,estimate,bedEstimates,plan,addPlanTask} from './model.mjs';
+import {initial,crops,valid,estimate,bedEstimates,plan,addPlanTask,seasonCalendar} from './model.mjs';
 const by=id=>document.getElementById(id), key='moy-urozhay:season2027:v1';let state=initial(),locked=false;
 function notice(msg){by('notice').textContent=msg}
 try{const raw=localStorage.getItem(key);if(raw!==null){const saved=JSON.parse(raw);if(!valid(saved))throw Error();state=saved}}catch{locked=true;notice('Хранилище недоступно или запись повреждена. Изменения действуют до закрытия страницы.')}
@@ -97,14 +97,21 @@ by('task-filter').onchange = event => {
   renderTasks();
 };
 
-by('backup-export').onclick = () => {
-  const blob = new Blob([JSON.stringify({version: 1, diary: state}, null, 2)], {type: 'application/json'});
+function download(content, type, filename) {
+  const blob = new Blob([content], {type});
   const url = URL.createObjectURL(blob);
   const link = el('a');
   link.href = url;
-  link.download = 'moy-urozhay-2027.json';
+  link.download = filename;
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+by('backup-export').onclick = () => {
+  download(JSON.stringify({version: 1, diary: state}, null, 2), 'application/json', 'moy-urozhay-2027.json');
+};
+by('calendar-export').onclick = () => {
+  download(seasonCalendar(state), 'text/calendar;charset=utf-8', 'moy-urozhay-2027.ics');
 };
 
 by('backup-import').onchange = async event => {

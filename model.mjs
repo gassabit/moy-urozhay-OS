@@ -1,4 +1,30 @@
 export const crops=['Свободна','Томаты','Огурцы','Перцы'];
+export function seasonCalendar(state, now = new Date()) {
+  const stamp = now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Moy Urozhay OS//Season 2027//RU', 'CALSCALE:GREGORIAN'];
+  for (const [index, [date, title]] of plan(state).entries()) {
+    const day = date.replaceAll('-', '');
+    lines.push('BEGIN:VEVENT', 'UID:season2027-' + day + '-' + index + '@moy-urozhay-os',
+      'DTSTAMP:' + stamp, 'DTSTART;VALUE=DATE:' + day,
+      'SUMMARY:' + title, 'DESCRIPTION:Ориентировочная дата', 'END:VEVENT');
+  }
+  lines.push('END:VCALENDAR');
+  const encoder = new TextEncoder();
+  return lines.map(line => {
+    let folded = '';
+    let bytes = 0;
+    for (const character of line) {
+      const size = encoder.encode(character).length;
+      if (bytes + size > 75) {
+        folded += '\r\n ';
+        bytes = 1;
+      }
+      folded += character;
+      bytes += size;
+    }
+    return folded;
+  }).join('\r\n') + '\r\n';
+}
 export function addPlanTask(tasks, due, title) {
   if (tasks.some(task => task.due === due && task.title === title)) return tasks;
   return [...tasks, {title, due, done: false}];
