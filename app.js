@@ -149,4 +149,12 @@ task.onsubmit = event => {
     : state.tasks.map((item, index) => index === editingTask ? {...item, title, due} : item);
   if (save({...state, tasks})) resetTaskForm();
 };
-by('print').onclick=by('sheet').onclick=()=>window.print();render();if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>notice('Офлайн-режим недоступен.'));
+function printMaterial(material) {
+  document.body.dataset.print = material;
+  window.print();
+}
+window.addEventListener('afterprint', () => delete document.body.dataset.print);
+by('print').onclick = () => printMaterial('season');
+by('sheet').onclick = () => printMaterial('map');
+by('print-checklist').onclick = () => printMaterial('checklist');
+render();if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>notice('Офлайн-режим недоступен.'));

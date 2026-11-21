@@ -14,3 +14,13 @@ button:disabled { opacity: .65; cursor: default; }
 @media print { .hero-action, .task-toolbar label { display: none; } }
  #list li:has(button) { display: flex; align-items: center; justify-content: space-between; gap: 8px; } #list li button { flex: none; }
 .next-stage a { color: white; } .next-stage { margin-bottom: 16px; }
+
+@media print {
+  body[data-print] main > section { display: none; }
+  body[data-print="map"] #beds,
+  body[data-print="season"] #season,
+  body[data-print="checklist"] #library { display: block; }
+  body[data-print="checklist"] #library > :not(#checklist) { display: none; }
+  body[data-print="checklist"] #checklist ul { list-style: none; padding-left: 0; }
+  #beds select { appearance: none; }
+}
