@@ -1,6 +1,6 @@
 const scope = new URL(self.registration.scope);
 const prefix = 'urozhay:' + scope.href + ':';
-const cacheName = prefix + 'v8';
+const cacheName = prefix + 'v9';
 const assets = ['./', 'index.html', 'style.css', 'app.js', 'model.mjs',
   'manifest.webmanifest', 'house.svg', 'icon-192.png', 'icon-512.png'];
 const assetUrls = new Set(assets.map(asset => new URL(asset, scope).href));

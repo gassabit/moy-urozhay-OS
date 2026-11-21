@@ -17,6 +17,12 @@ const map=by('map');map.replaceChildren();state.beds.forEach((crop,i)=>{const la
 by('estimate').textContent='Приблизительная вместимость выбранных грядок — '+estimate(state)+' растений. Условно 70% площади под посадки, 2 растения/м² для томатов и огурцов, 3 для перцев. Число округляется вниз для каждой грядки. Уточните расстояния по сорту.';
 const timeline = by('timeline');
 const stages = plan(state);
+const stageTasks = stages.map(([due, title]) =>
+  state.tasks.find(item => item.due === due && item.title === title));
+const nextStage = stages.findIndex((_, index) => !stageTasks[index]?.done);
+by('next-stage').textContent = nextStage === -1
+  ? 'Все работы плана выполнены'
+  : 'Следующая работа · ' + fmt(stages[nextStage][0]) + ' · ' + stages[nextStage][1];
 const bulkButton = by('add-plan');
 const plannedTasks = stages.reduce((tasks, [due, title]) => addPlanTask(tasks, due, title), state.tasks);
 bulkButton.disabled = plannedTasks === state.tasks;
@@ -27,13 +33,13 @@ bulkButton.onclick = () => {
   }
 };
 timeline.replaceChildren();
-for (const [due, title] of stages) {
+for (const [index, [due, title]] of stages.entries()) {
   const cultures = [...new Set(state.beds.filter(Boolean).map(crop => crops[crop]))];
   const detail = due === state.date && cultures.length ? ' · ' + cultures.join(', ') : '';
   const row = el('li', fmt(due) + ' — ' + title + detail);
-  const tasks = addPlanTask(state.tasks, due, title);
-  if (tasks === state.tasks) {
-    row.append(el('small', ' · В списке задач'));
+  const existing = stageTasks[index];
+  if (existing) {
+    row.append(el('small', existing.done ? ' · Выполнено' : ' · В списке задач'));
   } else {
     const button = el('button', 'В задачи');
     button.setAttribute('aria-label', 'Добавить задачу «' + title + '»');

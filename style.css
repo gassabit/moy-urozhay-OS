@@ -13,3 +13,4 @@ button:disabled { opacity: .65; cursor: default; }
 }
 @media print { .hero-action, .task-toolbar label { display: none; } }
  #list li:has(button) { display: flex; align-items: center; justify-content: space-between; gap: 8px; } #list li button { flex: none; }
+.next-stage a { color: white; } .next-stage { margin-bottom: 16px; }
