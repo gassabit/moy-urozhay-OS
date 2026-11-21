@@ -1,4 +1,4 @@
-import {initial,crops,valid,estimate,plan,addPlanTask} from './model.mjs';
+import {initial,crops,valid,estimate,bedEstimates,plan,addPlanTask} from './model.mjs';
 const by=id=>document.getElementById(id), key='moy-urozhay:season2027:v1';let state=initial(),locked=false;
 function notice(msg){by('notice').textContent=msg}
 try{const raw=localStorage.getItem(key);if(raw!==null){const saved=JSON.parse(raw);if(!valid(saved))throw Error();state=saved}}catch{locked=true;notice('Хранилище недоступно или запись повреждена. Изменения действуют до закрытия страницы.')}
@@ -12,8 +12,9 @@ function render(){for(const k of ['region','width','length','date'])form.element
 by('summary').textContent=state.region+' · '+state.width+' × '+state.length+' м';
 by('overview').textContent = new Intl.NumberFormat('ru').format(state.width * state.length)
   + ' м² · ' + state.beds.filter(Boolean).length + ' из 3 грядок занято';
-const map=by('map');map.replaceChildren();state.beds.forEach((crop,i)=>{const label=el('label','Грядка '+(i+1)),select=el('select');crops.forEach((name,j)=>select.add(new Option(name,j)));select.value=crop;select.onchange=()=>{const beds=state.beds.slice();beds[i]=Number(select.value);save({...state,beds});map.querySelectorAll('select')[i].focus()};label.append(select);map.append(label)});
-by('estimate').textContent='Приблизительная вместимость выбранных грядок — '+estimate(state)+' растений. Условно 70% площади под посадки, 2 растения/м² для томатов и огурцов, 3 для перцев. Уточните расстояния по сорту.';
+const counts = bedEstimates(state);
+const map=by('map');map.replaceChildren();state.beds.forEach((crop,i)=>{const label=el('label','Грядка '+(i+1)),select=el('select');crops.forEach((name,j)=>select.add(new Option(name,j)));select.value=crop;select.onchange=()=>{const beds=state.beds.slice();beds[i]=Number(select.value);save({...state,beds});map.querySelectorAll('select')[i].focus()};label.append(select, el('small', crop ? '≈ ' + counts[i] + ' раст.' : 'Без посадок'));map.append(label)});
+by('estimate').textContent='Приблизительная вместимость выбранных грядок — '+estimate(state)+' растений. Условно 70% площади под посадки, 2 растения/м² для томатов и огурцов, 3 для перцев. Число округляется вниз для каждой грядки. Уточните расстояния по сорту.';
 const timeline = by('timeline');
 const stages = plan(state);
 const bulkButton = by('add-plan');
