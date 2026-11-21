@@ -84,6 +84,7 @@ function renderTasks() {
       task.elements.due.value = item.due;
       by('task-submit').textContent = 'Сохранить правки';
       by('task-cancel').hidden = false;
+      by('task-delete').hidden = false;
       task.elements.title.focus();
     };
     row.append(label, edit);
@@ -136,9 +137,18 @@ function resetTaskForm() {
   task.reset();
   by('task-submit').textContent = 'Добавить задачу';
   by('task-cancel').hidden = true;
+  by('task-delete').hidden = true;
 }
 
 by('task-cancel').onclick = resetTaskForm;
+by('task-delete').onclick = () => {
+  if (editingTask === null || !window.confirm('Удалить эту задачу?')) return;
+  const tasks = state.tasks.filter((_, index) => index !== editingTask);
+  if (save({...state, tasks})) {
+    resetTaskForm();
+    task.elements.title.focus();
+  }
+};
 task.onsubmit = event => {
   event.preventDefault();
   const fields = task.elements;

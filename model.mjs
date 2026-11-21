@@ -40,4 +40,18 @@ export function bedEstimates(s) {
 export function estimate(s) {
   return bedEstimates(s).reduce((total, count) => total + count, 0);
 }
-export function plan(s){const stages=[[-14,'Подготовить теплицу'],[0,'Проверить условия для высадки'],[7,'Проверить приживаемость']];return stages.map(([offset,title])=>{const d=new Date(s.date+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+offset);return [d.toISOString().slice(0,10),title]})}
+export function plan(state) {
+  const stages = [
+    [-21, 'Проверить укрытие и состояние грядок'],
+    [-14, 'Подготовить теплицу'],
+    [-3, 'Проверить полив и подготовить опоры'],
+    [0, 'Проверить условия для высадки'],
+    [7, 'Проверить приживаемость'],
+    [21, 'Осмотреть растения и проверить подвязку'],
+  ];
+  return stages.map(([offset, title]) => {
+    const day = new Date(state.date + 'T12:00:00Z');
+    day.setUTCDate(day.getUTCDate() + offset);
+    return [day.toISOString().slice(0, 10), title];
+  });
+}
