@@ -1,4 +1,8 @@
 export const crops=['Свободна','Томаты','Огурцы','Перцы'];
+export function addPlanTask(tasks, due, title) {
+  if (tasks.some(task => task.due === due && task.title === title)) return tasks;
+  return [...tasks, {title, due, done: false}];
+}
 export const initial=()=>({region:'Мой участок',width:3,length:6,date:'2027-05-25',beds:[1,2,0],tasks:[]});
 export function valid(s){return !!s && typeof s.region==='string' && s.region.trim().length>0 && s.region.length<=80 && Number.isFinite(s.width)&&s.width>=1&&s.width<=50&&Number.isFinite(s.length)&&s.length>=1&&s.length<=100&&/^2027-\d{2}-\d{2}$/.test(s.date)&&isoDate(s.date)&&Array.isArray(s.beds)&&s.beds.length===3&&s.beds.every(x=>Number.isInteger(x)&&x>=0&&x<crops.length)&&Array.isArray(s.tasks)&&s.tasks.every(t=>t&&typeof t.title==='string'&&t.title.trim()&&t.title.length<=120&&isoDate(t.due)&&typeof t.done==='boolean')}
 function isoDate(d){if(typeof d!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(d))return false;const dt=new Date(d+'T12:00:00Z');return Number.isFinite(+dt)&&dt.toISOString().slice(0,10)===d}
