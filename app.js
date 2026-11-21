@@ -5,6 +5,7 @@ try{const raw=localStorage.getItem(key);if(raw!==null){const saved=JSON.parse(ra
 function save(next){if(!valid(next)){notice('Проверьте заполненные поля.');return false}state=next;try{if(locked)throw Error();localStorage.setItem(key,JSON.stringify(state));notice('Сохранено на этом устройстве.')}catch{notice('Изменения действуют только в открытой странице.')}render();return true}
 const form=by('profile'),task=by('newtask');
 let taskFilter = 'all';
+let editingTask = null;
 const el=(tag,text)=>{const node=document.createElement(tag);if(text)node.textContent=text;return node};
 const fmt=d=>new Intl.DateTimeFormat('ru',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(d+'T12:00:00Z'));
 function render(){for(const k of ['region','width','length','date'])form.elements.namedItem(k).value=state[k];
@@ -67,7 +68,18 @@ function renderTasks() {
       if (save({...state, tasks})) (by(box.id) || by('task-filter')).focus();
     };
     label.append(box, el('span', item.title + ' · ' + fmt(item.due)));
-    row.append(label);
+    const edit = el('button', 'Изменить');
+    edit.type = 'button';
+    edit.setAttribute('aria-label', 'Изменить задачу «' + item.title + '»');
+    edit.onclick = () => {
+      editingTask = index;
+      task.elements.title.value = item.title;
+      task.elements.due.value = item.due;
+      by('task-submit').textContent = 'Сохранить правки';
+      by('task-cancel').hidden = false;
+      task.elements.title.focus();
+    };
+    row.append(label, edit);
     list.append(row);
   }
   if (!list.childElementCount) list.append(el('li', 'В этом списке пока нет задач.'));
@@ -98,12 +110,29 @@ by('backup-import').onchange = async event => {
     const backup = JSON.parse(await file.text());
     if (backup?.version !== 1 || !valid(backup.diary)) throw Error();
     if (window.confirm('Заменить текущий дневник данными из резервной копии?')) {
-      save(backup.diary);
+      if (save(backup.diary)) resetTaskForm();
     }
   } catch {
     notice('Не удалось прочитать резервную копию. Выберите файл дневника «Мой урожай OS» размером до 5 МБ.');
   }
 };
 form.onsubmit=e=>{e.preventDefault();const f=form.elements;save({...state,region:f.region.value.trim(),width:Number(f.width.value),length:Number(f.namedItem('length').value),date:f.date.value})};
-task.onsubmit=e=>{e.preventDefault();const f=task.elements;if(save({...state,tasks:[...state.tasks,{title:f.title.value.trim(),due:f.due.value,done:false}]}))task.reset()};
+function resetTaskForm() {
+  editingTask = null;
+  task.reset();
+  by('task-submit').textContent = 'Добавить задачу';
+  by('task-cancel').hidden = true;
+}
+
+by('task-cancel').onclick = resetTaskForm;
+task.onsubmit = event => {
+  event.preventDefault();
+  const fields = task.elements;
+  const title = fields.title.value.trim();
+  const due = fields.due.value;
+  const tasks = editingTask === null
+    ? [...state.tasks, {title, due, done: false}]
+    : state.tasks.map((item, index) => index === editingTask ? {...item, title, due} : item);
+  if (save({...state, tasks})) resetTaskForm();
+};
 by('print').onclick=by('sheet').onclick=()=>window.print();render();if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>notice('Офлайн-режим недоступен.'));
