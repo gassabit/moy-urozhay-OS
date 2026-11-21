@@ -11,8 +11,18 @@ by('summary').textContent=state.region+' · '+state.width+' × '+state.length+' 
 const map=by('map');map.replaceChildren();state.beds.forEach((crop,i)=>{const label=el('label','Грядка '+(i+1)),select=el('select');crops.forEach((name,j)=>select.add(new Option(name,j)));select.value=crop;select.onchange=()=>{const beds=state.beds.slice();beds[i]=Number(select.value);save({...state,beds});map.querySelectorAll('select')[i].focus()};label.append(select);map.append(label)});
 by('estimate').textContent='Приблизительная вместимость выбранных грядок — '+estimate(state)+' растений. Условно 70% площади под посадки, 2 растения/м² для томатов и огурцов, 3 для перцев. Уточните расстояния по сорту.';
 const timeline = by('timeline');
+const stages = plan(state);
+const bulkButton = by('add-plan');
+const plannedTasks = stages.reduce((tasks, [due, title]) => addPlanTask(tasks, due, title), state.tasks);
+bulkButton.disabled = plannedTasks === state.tasks;
+bulkButton.textContent = bulkButton.disabled ? 'Весь план в задачах' : 'Добавить весь план в задачи';
+bulkButton.onclick = () => {
+  if (save({...state, tasks: plannedTasks})) {
+    by('list').querySelector('li:last-child input')?.focus();
+  }
+};
 timeline.replaceChildren();
-for (const [due, title] of plan(state)) {
+for (const [due, title] of stages) {
   const cultures = [...new Set(state.beds.filter(Boolean).map(crop => crops[crop]))];
   const detail = due === state.date && cultures.length ? ' · ' + cultures.join(', ') : '';
   const row = el('li', fmt(due) + ' — ' + title + detail);
