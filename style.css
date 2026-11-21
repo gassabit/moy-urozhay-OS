@@ -24,3 +24,4 @@ button:disabled { opacity: .65; cursor: default; }
   body[data-print="checklist"] #checklist ul { list-style: none; padding-left: 0; }
   #beds select { appearance: none; }
 }
+@media print { body[data-print="full"] #beds, body[data-print="full"] #season, body[data-print="full"] #harvest { display:block; } body[data-print="full"] #record {display:none;} }

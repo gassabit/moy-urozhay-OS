@@ -1,4 +1,4 @@
-import {initial,crops,valid,estimate,bedEstimates,plan,addPlanTask,seasonCalendar} from './model.mjs';
+import {initial,crops,valid,aisleWidth,usableArea,estimate,bedEstimates,plan,addPlanTask,seasonCalendar} from './model.mjs';
 const by=id=>document.getElementById(id), key='moy-urozhay:season2027:v1';let state=initial(),locked=false;
 function notice(msg){by('notice').textContent=msg}
 try{const raw=localStorage.getItem(key);if(raw!==null){const saved=JSON.parse(raw);if(!valid(saved))throw Error();state=saved}}catch{locked=true;notice('Хранилище недоступно или запись повреждена. Изменения действуют до закрытия страницы.')}
@@ -11,14 +11,31 @@ const fmt=d=>new Intl.DateTimeFormat('ru',{day:'numeric',month:'long',year:'nume
 function render(){for(const k of ['region','width','length','date'])form.elements.namedItem(k).value=state[k];
 by('summary').textContent=state.region+' · '+state.width+' × '+state.length+' м';
 by('overview').textContent = new Intl.NumberFormat('ru').format(state.width * state.length)
-  + ' м² · ' + state.beds.filter(Boolean).length + ' из 3 грядок занято';
+  + ' м² · ' + state.beds.filter(Boolean).length + ' из ' + state.beds.length + ' грядок занято';
+form.elements.count.value = state.beds.length;
+form.elements.aisle.value = Number(aisleWidth(state).toFixed(3));
+form.elements.depth.value = state.depth ?? 20;
+const area = usableArea(state);
+by('dimensions').textContent = state.region + ' · ' + state.width + ' × ' + state.length + ' м · полезная площадь ' + area.toFixed(2) + ' м²';
+const records = state.records ?? [];
+const seasons = new Map();
+by('records').replaceChildren();
+for (const record of records) {
+  const year = record.day.slice(0,4);
+  const sum = seasons.get(year) ?? {kg:0,cost:0};
+  sum.kg += record.kg;
+  sum.cost += record.cost;
+  seasons.set(year,sum);
+  by('records').append(el('li',fmt(record.day) + ' · ' + record.crop + ' · ' + record.kg + ' кг · ' + record.cost + ' ₽ ' + record.note));
+}
+by('totals').textContent = [...seasons].sort().map(([year,sum]) => year + ': ' + Number(sum.kg.toFixed(3)) + ' кг · ' + sum.cost.toFixed(2) + ' ₽' + (sum.kg ? ' · ' + (sum.cost/sum.kg).toFixed(2) + ' ₽/кг' : '')).join(' | ') || 'Запишите первый сбор или расход.';
 const counts = bedEstimates(state);
 const map=by('map');map.replaceChildren();state.beds.forEach((crop,i)=>{const label=el('label','Грядка '+(i+1)),select=el('select');crops.forEach((name,j)=>select.add(new Option(name,j)));select.value=crop;select.onchange=()=>{const beds=state.beds.slice();beds[i]=Number(select.value);save({...state,beds});map.querySelectorAll('select')[i].focus()};label.append(select, el('small', crop ? '≈ ' + counts[i] + ' раст.' : 'Без посадок'));map.append(label)});
-by('estimate').textContent='Приблизительная вместимость выбранных грядок — '+estimate(state)+' растений. Условно 70% площади под посадки, 2 растения/м² для томатов и огурцов, 3 для перцев. Число округляется вниз для каждой грядки. Уточните расстояния по сорту.';
+by('estimate').textContent='Приблизительная вместимость выбранных грядок — '+estimate(state)+' растений. Грунт для полного слоя ' + (state.depth ?? 20) + ' см: около ' + Math.round(area*(state.depth ?? 20)*10) + ' л. Условная плотность:  2 растения/м² для томатов и огурцов, 3 для перцев. Число округляется вниз для каждой грядки. Уточните расстояния по сорту.';
 const timeline = by('timeline');
 const stages = plan(state);
 const stageTasks = stages.map(([due, title]) =>
-  state.tasks.find(item => item.due === due && item.title === title));
+  state.tasks.find(item => item.stage === title || (item.due === due && item.title === title)));
 const nextStage = stages.findIndex((_, index) => !stageTasks[index]?.done);
 by('next-stage').textContent = nextStage === -1
   ? 'Все работы плана выполнены'
@@ -124,14 +141,35 @@ by('backup-import').onchange = async event => {
     if (file.size > 5 * 1024 * 1024) throw Error();
     const backup = JSON.parse(await file.text());
     if (backup?.version !== 1 || !valid(backup.diary)) throw Error();
-    if (window.confirm('Заменить текущий дневник данными из резервной копии?')) {
+    if (window.confirm('Восстановить участок «' + backup.diary.region + '», ' + backup.diary.beds.length + ' грядок и ' + backup.diary.tasks.length + ' задач? Текущий дневник будет заменён.')) {
       if (save(backup.diary)) resetTaskForm();
     }
   } catch {
     notice('Не удалось прочитать резервную копию. Выберите файл дневника «Мой урожай OS» размером до 5 МБ.');
   }
 };
-form.onsubmit=e=>{e.preventDefault();const f=form.elements;save({...state,region:f.region.value.trim(),width:Number(f.width.value),length:Number(f.namedItem('length').value),date:f.date.value})};
+form.onsubmit = event => {
+  event.preventDefault();
+  const f = form.elements;
+  const count = Number(f.count.value);
+  const width = Number(f.width.value);
+  const aisle = Number(f.aisle.value);
+  if (width <= aisle * (count - 1)) {
+    f.aisle.setCustomValidity('Проходы занимают всю ширину. Уменьшите их ширину или количество грядок.');
+    f.aisle.reportValidity();
+    f.aisle.setCustomValidity('');
+    return;
+  }
+  const beds = Array.from({length:count}, (_,index) => state.beds[index] ?? 0);
+  if (state.beds.slice(count).some(Boolean) && !confirm('Убрать последние грядки вместе с их посадками?')) return;
+  save({...state,region:f.region.value.trim(),width,length:Number(f.namedItem('length').value),date:f.date.value,aisle,depth:Number(f.depth.value),beds});
+};
+by('record').onsubmit = event => {
+  event.preventDefault();
+  const f = event.target.elements;
+  const record = {crop:f.crop.value.trim(),day:f.day.value,kg:Number(f.kg.value),cost:Number(f.cost.value),note:f.note.value.trim()};
+  if (save({...state,records:[...(state.records ?? []),record]})) event.target.reset();
+};
 function resetTaskForm() {
   editingTask = null;
   task.reset();
@@ -156,7 +194,7 @@ task.onsubmit = event => {
   const due = fields.due.value;
   const tasks = editingTask === null
     ? [...state.tasks, {title, due, done: false}]
-    : state.tasks.map((item, index) => index === editingTask ? {...item, title, due} : item);
+    : state.tasks.map((item, index) => index === editingTask ? {...item, stage: item.stage ?? plan(state).find(([d,t]) => d === item.due && t === item.title)?.[1], title, due} : item);
   if (save({...state, tasks})) resetTaskForm();
 };
 function printMaterial(material) {
@@ -168,3 +206,4 @@ by('print').onclick = () => printMaterial('season');
 by('sheet').onclick = () => printMaterial('map');
 by('print-checklist').onclick = () => printMaterial('checklist');
 render();if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>notice('Офлайн-режим недоступен.'));
+by('full-plan').onclick = () => printMaterial('full');
